@@ -4,9 +4,9 @@ An MCP server that exposes the [OpenBeta](https://openbeta.io) climbing database
 
 ## What it does
 
-You tell Claude what boulders you've sent; BetaBot-MCP fetches real route data from OpenBeta and lets Claude reason about what you should try next at a given crag — grounded entirely in **grade, location, and area hierarchy**. It never guesses or labels a climb's style.
+You tell Claude what boulders you've sent; BetaBot-MCP fetches real route data from OpenBeta and lets Claude reason about how strong you are, where your weaknesses lie, and what to try next at a given area — grounded entirely in **grade, location, and area hierarchy**. It never guesses or labels a climb's style.
 
-The server talks to the public OpenBeta GraphQL API (`https://api.openbeta.io`, no auth) and speaks to Claude over stdio. All real logic lives in `src/core/` (network, grade math, ranking) with thin tool wrappers in `src/mcp/`, so the data/logic layer can later lift into a mobile-app backend untouched.
+The server talks to the public OpenBeta GraphQL API (`https://api.openbeta.io`, no auth) and speaks to Claude over stdio. All real logic lives in `src/core/` (network, grade math, analysis, ranking) with thin tool wrappers in `src/mcp/`, so the data/logic layer can later lift into a mobile-app backend untouched. Every tool returns **structured facts only** — the app renders them (charts, profile screens) and the model narrates the why.
 
 ## Tools
 
@@ -16,7 +16,22 @@ The server talks to the public OpenBeta GraphQL API (`https://api.openbeta.io`, 
 | `get_area_problems` | List all boulder problems under an area, traversing sub-areas down to leaf crags. |
 | `get_problem_details` | Full detail on one problem, including its verbatim description. |
 | `get_pyramid` | Build the climber's grade pyramid from their ticks and show where grade gaps are. |
-| `recommend_next` | Rank unclimbed problems at a crag by grade fit and group them by wall. The showpiece. |
+| `get_climber_level` | Assess the climber's level: headline grade, facets (hardest send, consolidated grade), and a per-grade send breakdown for charting. |
+| `recommend_next` | Rank unclimbed problems under an area by grade fit, grouped by crag and ordered by proximity. The showpiece. |
+| `get_typed_pyramid` *(opt-in)* | Per-type grade pyramids and weakest-type ranking. Disabled unless `BETABOT_TYPED_PYRAMID=1` (see below). |
+
+### Location & scope in `recommend_next`
+
+`recommend_next` takes optional location inputs:
+- **`areaUuid`** sets *how wide to search* — a single crag, a region, or a whole country.
+- **`userLocation`** (`{ lat, lng }`) sets *where the climber is*; crags are ordered nearest-first to it. Omit it and the anchor area's own center is used.
+- **`maxDistanceKm`** optionally caps how far out to include.
+
+All three are independent and degrade gracefully — with no coordinates at all it simply ranks by grade fit.
+
+### Optional: per-type ("slab") pyramids
+
+`get_typed_pyramid` builds a separate grade pyramid per wall-angle type (slab, overhang, etc.) and ranks your weakest types. It's **off by default** because it needs per-tick `type` data the consuming app must supply. Types are taken only from the climber's own ticks — never inferred from names or descriptions. Enable it by setting `BETABOT_TYPED_PYRAMID=1` in the server environment; until then it isn't registered.
 
 ## Install
 
@@ -73,7 +88,9 @@ Restart Claude Desktop after editing.
 
 ## Data & honesty
 
-BetaBot-MCP uses only the three consistently-populated OpenBeta field groups: **grades** (`vscale`), **hierarchy** (`pathTokens`), and **location** (`lat`/`lng`). It never infers or asserts a climb's *style* (slab, compression, slopers, etc.). When a climb has a text description, it is surfaced **verbatim** — never paraphrased into a style claim. Recommendations contain only factual fields, leaving Claude to compose the coaching narrative without over-claiming.
+BetaBot-MCP uses only the three consistently-populated OpenBeta field groups: **grades** (`vscale`), **hierarchy** (`pathTokens`), and **location** (`lat`/`lng`). It never infers or asserts a climb's *style* (slab, compression, slopers, etc.). When a climb has a text description, it is surfaced **verbatim** — never paraphrased into a style claim.
+
+Every tool returns **only factual fields** — grades, counts, distributions, distances — and never prose or presentation. The app renders the data (e.g. a level breakdown as a pie chart); the model composes the coaching narrative from the facts without over-claiming. Climb *type* is honored only when the climber supplied it as a fact on a tick; typing routes you haven't logged is deliberately out of scope.
 
 ## License
 
