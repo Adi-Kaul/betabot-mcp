@@ -87,11 +87,25 @@ export const tools: ToolDef[] = [
     config: {
       title: "Recommend next problems",
       description:
-        `Rank unclimbed boulder problems at a crag by grade fit and group them by wall. The showpiece tool. ${NO_STYLE_NOTE}`,
-      inputSchema: { ticks: z.array(tickSchema), areaUuid: z.string() },
+        `Rank unclimbed boulder problems under an area by grade fit and group them by wall/crag. Pick the area to set how wide to search: a single crag, a region, or a whole country. Crags are ordered nearest-first to a center point — the climber's GPS position when userLocation is supplied, otherwise the area's own center — and an optional maxDistanceKm caps how far out to include. The showpiece tool. ${NO_STYLE_NOTE}`,
+      inputSchema: {
+        ticks: z.array(tickSchema),
+        areaUuid: z.string(),
+        userLocation: z.object({ lat: z.number(), lng: z.number() }).optional(),
+        maxDistanceKm: z.number().positive().optional(),
+      },
     },
-    handler: async ({ ticks, areaUuid }: { ticks: Tick[]; areaUuid: string }) =>
-      asText(await recommendNext(ticks, areaUuid)),
+    handler: async ({
+      ticks,
+      areaUuid,
+      userLocation,
+      maxDistanceKm,
+    }: {
+      ticks: Tick[];
+      areaUuid: string;
+      userLocation?: { lat: number; lng: number };
+      maxDistanceKm?: number;
+    }) => asText(await recommendNext(ticks, areaUuid, { userLocation, maxDistanceKm })),
   },
 ];
 

@@ -215,11 +215,15 @@ export async function getAreaProblems(uuid: string, maxDepth = 6): Promise<Climb
     if (depth > maxDepth) return;
     const raw = await fetchAreaRaw(areaUuid);
     const path = raw.pathTokens ?? [];
+    // Most boulders lack their own lat/lng; fall back to the leaf crag's
+    // coordinates so proximity ranking has something to work with.
+    const areaCoords = coords(raw.metadata);
 
     for (const rc of raw.climbs ?? []) {
       const climb = toClimb(rc, path);
       if (!climb.isBoulder) continue;
       if (seen.has(climb.uuid)) continue;
+      if (!climb.coordinates && areaCoords) climb.coordinates = areaCoords;
       seen.add(climb.uuid);
       out.push(climb);
     }
