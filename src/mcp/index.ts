@@ -1,4 +1,4 @@
-// Server bootstrap + stdio transport. Registers the five tools and connects.
+// Server bootstrap + stdio transport. Registers the active tools and connects.
 // Never write to stdout — it corrupts the stdio protocol; log to stderr only.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
