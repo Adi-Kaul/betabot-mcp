@@ -29,10 +29,34 @@ export interface Climb {
 
 export type TickStatus = "sent" | "attempt" | "project";
 
+// Wall-angle climb type. A *fact the climber supplies* on a tick — never
+// inferred by us from descriptions/photos (that style-inference is out of
+// scope per the project's core rule). A future curated type DB will be the
+// authoritative source for typing *candidate* climbs.
+export type ClimbType =
+  | "slab"
+  | "vertical"
+  | "overhang"
+  | "roof"
+  | "arete"
+  | "dihedral"
+  | "compression";
+
+export const CLIMB_TYPES: ClimbType[] = [
+  "slab",
+  "vertical",
+  "overhang",
+  "roof",
+  "arete",
+  "dihedral",
+  "compression",
+];
+
 export interface Tick {
   climbName: string; // matched by name (+ area) since users may import
   vGrade: string; // e.g. "V4"
   status: TickStatus;
+  type?: ClimbType; // user-supplied wall angle; absent = untyped
   attempts?: number;
   date?: string;
 }

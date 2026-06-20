@@ -1,8 +1,8 @@
 // Grade-distribution math. Pure functions, no network — unit-testable with
 // no mocks.
 
-import type { Pyramid, PyramidLevel, Tick } from "./types.js";
-import { parseVGrade } from "./types.js";
+import type { ClimbType, Pyramid, PyramidLevel, Tick } from "./types.js";
+import { CLIMB_TYPES, parseVGrade } from "./types.js";
 
 /**
  * Build a climber's grade pyramid from their ticks.
@@ -47,4 +47,84 @@ export function buildPyramid(ticks: Tick[]): Pyramid {
   }
 
   return { levels, gaps };
+}
+
+/**
+ * The highest grade in a built pyramid with a solid base (3+ sends), else the
+ * highest grade with any send, else null. Returns the base integer.
+ *
+ * Levels are emitted in ascending grade order, so the last qualifying rung is
+ * the highest. Pure helper shared by the typed-pyramid analysis below.
+ */
+export function workingGradeNum(pyramid: Pyramid): number | null {
+  let solid: number | null = null;
+  let anySend: number | null = null;
+  for (const level of pyramid.levels) {
+    const n = parseVGrade(level.grade);
+    if (n === null) continue;
+    if (level.sent >= 1) anySend = n;
+    if (level.sent >= 3) solid = n;
+  }
+  return solid ?? anySend;
+}
+
+export interface TypedPyramid {
+  type: ClimbType;
+  pyramid: Pyramid;
+  workingGrade: string; // "V<n>" of this type's working grade, "V0" if none
+}
+
+/**
+ * Build a separate grade pyramid per climb type, from the *typed* sends only.
+ *
+ * Ticks without a `type` are ignored here (they still feed the overall
+ * pyramid via `buildPyramid`). Only types the climber has actually logged
+ * appear, in the canonical `CLIMB_TYPES` order. Each type's bucket reuses
+ * `buildPyramid` unchanged — this is pure partitioning.
+ */
+export function buildTypedPyramids(ticks: Tick[]): TypedPyramid[] {
+  const byType = new Map<ClimbType, Tick[]>();
+  for (const tick of ticks) {
+    if (!tick.type) continue;
+    const list = byType.get(tick.type) ?? [];
+    list.push(tick);
+    byType.set(tick.type, list);
+  }
+
+  const out: TypedPyramid[] = [];
+  for (const type of CLIMB_TYPES) {
+    const bucket = byType.get(type);
+    if (!bucket) continue;
+    const pyramid = buildPyramid(bucket);
+    const n = workingGradeNum(pyramid);
+    out.push({ type, pyramid, workingGrade: `V${n ?? 0}` });
+  }
+  return out;
+}
+
+export interface TypeWeakness {
+  type: ClimbType;
+  workingGrade: string;
+  lagBelowOverall: number; // grades behind your overall working grade; higher = weaker
+}
+
+/**
+ * Rank the climber's logged types weakest-first for the "mixed" view: how far
+ * each type's working grade lags behind their overall working grade. A large
+ * positive lag is a weak spot to train next; 0 means on par with overall.
+ *
+ * Overall working grade is computed across *all* sent ticks (typed or not).
+ * Returns [] if there are no typed sends or no overall base to compare against.
+ */
+export function weakestTypes(ticks: Tick[]): TypeWeakness[] {
+  const overall = workingGradeNum(buildPyramid(ticks));
+  if (overall === null) return [];
+
+  const typed = buildTypedPyramids(ticks);
+  return typed
+    .map((t) => {
+      const n = workingGradeNum(t.pyramid) ?? 0;
+      return { type: t.type, workingGrade: t.workingGrade, lagBelowOverall: overall - n };
+    })
+    .sort((a, b) => b.lagBelowOverall - a.lagBelowOverall || a.type.localeCompare(b.type));
 }
