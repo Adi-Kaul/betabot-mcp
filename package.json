@@ -1,16 +1,23 @@
 {
   "name": "betabot-mcp",
-  "version": "1.0.0",
-  "description": "betabot-mcp begins",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "MCP server exposing the OpenBeta climbing database to Claude as bouldering-progression tools.",
+  "type": "module",
+  "main": "build/mcp/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node build/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node build/mcp/index.js",
+    "test": "npm run build && node --test \"build/tests/*.test.js\"",
+    "test:integration": "RUN_INTEGRATION=1 npm test"
   },
-  "keywords": [],
+  "keywords": [
+    "mcp",
+    "climbing",
+    "openbeta",
+    "bouldering"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
@@ -19,7 +26,4 @@
     "@types/node": "^26.0.0",
     "typescript": "^6.0.3"
   }
-  
-
 }
-
