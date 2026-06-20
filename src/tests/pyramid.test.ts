@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPyramid, buildTypedPyramids, weakestTypes } from "../core/pyramid.js";
+import { assessLevel, buildPyramid, buildTypedPyramids, weakestTypes } from "../core/pyramid.js";
 import type { ClimbType, Tick } from "../core/types.js";
 
 function sent(climbName: string, vGrade: string): Tick {
@@ -112,4 +112,42 @@ test("weakestTypes returns empty when there are no typed or no sent ticks", () =
   assert.deepEqual(weakestTypes([]), []);
   // Sends exist but none are typed -> nothing to rank.
   assert.deepEqual(weakestTypes([sent("a", "V3")]), []);
+});
+
+test("assessLevel headlines the consolidated grade with facets and breakdown", () => {
+  const ticks: Tick[] = [
+    sent("a", "V3"),
+    sent("b", "V3"),
+    sent("c", "V3"), // 3 sends -> consolidated V3
+    sent("d", "V4"),
+    sent("e", "V5"), // hardest send V5, but only 1
+  ];
+
+  const a = assessLevel(ticks);
+  assert.equal(a.consolidatedGrade, "V3"); // highest with 3+
+  assert.equal(a.hardestGrade, "V5"); // hardest single send
+  assert.equal(a.level, "V3"); // honest headline = consolidated
+  assert.equal(a.sendsAtLevel, 3);
+  assert.equal(a.totalSends, 5);
+  assert.deepEqual(a.breakdown, [
+    { grade: "V3", sent: 3 },
+    { grade: "V4", sent: 1 },
+    { grade: "V5", sent: 1 },
+  ]);
+});
+
+test("assessLevel falls back to hardest send when nothing is consolidated", () => {
+  const a = assessLevel([sent("a", "V2"), sent("b", "V4")]);
+  assert.equal(a.consolidatedGrade, null);
+  assert.equal(a.hardestGrade, "V4");
+  assert.equal(a.level, "V4"); // no 3+ base -> headline the hardest send
+});
+
+test("assessLevel on no sends returns V0 baseline", () => {
+  const a = assessLevel([]);
+  assert.equal(a.level, "V0");
+  assert.equal(a.hardestGrade, null);
+  assert.equal(a.consolidatedGrade, null);
+  assert.equal(a.totalSends, 0);
+  assert.deepEqual(a.breakdown, []);
 });

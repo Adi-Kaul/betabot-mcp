@@ -128,3 +128,52 @@ export function weakestTypes(ticks: Tick[]): TypeWeakness[] {
     })
     .sort((a, b) => b.lagBelowOverall - a.lagBelowOverall || a.type.localeCompare(b.type));
 }
+
+export interface LevelAssessment {
+  level: string; // headline: consolidated grade, else hardest send, else "V0"
+  hardestGrade: string | null; // hardest single send
+  consolidatedGrade: string | null; // highest grade with a solid 3+ base
+  breakdown: PyramidLevel[]; // sends per grade — the distribution for a chart
+  totalSends: number;
+  sendsAtLevel: number; // sends at the headline level's grade
+}
+
+/**
+ * Assess the climber's level from their ticks. Pure facts only — no prose, no
+ * presentation. The app renders `breakdown` however it likes; the LLM narrates
+ * the "why" from these numbers.
+ *
+ * Three distinct facets so the consumer can choose what to headline:
+ * - `hardestGrade`  — their single hardest send (flattering but fragile).
+ * - `consolidatedGrade` — highest grade with 3+ sends (what they truly operate at).
+ * - `level` — the honest headline: consolidated, else hardest, else "V0".
+ */
+export function assessLevel(ticks: Tick[]): LevelAssessment {
+  const { levels } = buildPyramid(ticks);
+  const totalSends = levels.reduce((sum, l) => sum + l.sent, 0);
+
+  if (levels.length === 0) {
+    return {
+      level: "V0",
+      hardestGrade: null,
+      consolidatedGrade: null,
+      breakdown: [],
+      totalSends: 0,
+      sendsAtLevel: 0,
+    };
+  }
+
+  // Levels are ascending: the last with any send is hardest, the last with 3+
+  // is the consolidated base.
+  let hardestGrade: string | null = null;
+  let consolidatedGrade: string | null = null;
+  for (const lvl of levels) {
+    if (lvl.sent >= 1) hardestGrade = lvl.grade;
+    if (lvl.sent >= 3) consolidatedGrade = lvl.grade;
+  }
+
+  const level = consolidatedGrade ?? hardestGrade ?? "V0";
+  const sendsAtLevel = levels.find((l) => l.grade === level)?.sent ?? 0;
+
+  return { level, hardestGrade, consolidatedGrade, breakdown: levels, totalSends, sendsAtLevel };
+}

@@ -7,7 +7,7 @@ import {
   getAreaProblems,
   getProblemDetails,
 } from "../core/openbeta.js";
-import { buildPyramid, buildTypedPyramids, weakestTypes } from "../core/pyramid.js";
+import { assessLevel, buildPyramid, buildTypedPyramids, weakestTypes } from "../core/pyramid.js";
 import { recommendNext } from "../core/recommend.js";
 import { CLIMB_TYPES, type ClimbType, type Tick } from "../core/types.js";
 
@@ -81,6 +81,16 @@ export const tools: ToolDef[] = [
       inputSchema: { ticks: z.array(tickSchema) },
     },
     handler: async ({ ticks }: { ticks: Tick[] }) => asText(buildPyramid(ticks)),
+  },
+  {
+    name: "get_climber_level",
+    config: {
+      title: "Assess climber level",
+      description:
+        "Assess the climber's level from their ticks. Returns the headline level plus distinct facets — hardest send, consolidated grade (highest with 3+ sends), the per-grade send breakdown for a chart, and supporting counts. Pure numbers only: no prose and no chart styling — the app renders the breakdown and the model narrates the why from these facts.",
+      inputSchema: { ticks: z.array(tickSchema) },
+    },
+    handler: async ({ ticks }: { ticks: Tick[] }) => asText(assessLevel(ticks)),
   },
   {
     name: "recommend_next",
